@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Memento Dash - Focus on What Matters",
+  "version": "1.6",
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
+  "description": "Stop wasting time and start living it. LifeLeft is a beautifully designed dashboard that replaces your default new tab with a minimalist interface focused on what matters most: your time.",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  }
+}

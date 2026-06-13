@@ -2,11 +2,80 @@
 // --- 1. CONFIGURATION ---
 // ==========================================
 
-const birthDate = new Date(2004, 8, 10, 20, 15); 
-const lifeExpectancyYears = 60;
+const LIFE_SETTINGS_KEY = 'lifeSettings';
+const defaultLifeSettings = {
+    birthDate: '2004-09-10',
+    birthTime: '20:15',
+    useBirthTime: true,
+    lifeExpectancyYears: 60,
+    gridPrecision: 'weeks'
+};
 
-const deathDate = new Date(birthDate);
-deathDate.setFullYear(birthDate.getFullYear() + lifeExpectancyYears);
+let lifeSettings = loadLifeSettings();
+let birthDate = createBirthDate(lifeSettings);
+let lifeExpectancyYears = lifeSettings.lifeExpectancyYears;
+let deathDate = createDeathDate(birthDate, lifeExpectancyYears);
+
+function loadLifeSettings() {
+    const savedSettings = localStorage.getItem(LIFE_SETTINGS_KEY);
+    if (!savedSettings) return { ...defaultLifeSettings };
+
+    try {
+        const parsed = JSON.parse(savedSettings);
+        return normalizeLifeSettings(parsed);
+    } catch (error) {
+        return { ...defaultLifeSettings };
+    }
+}
+
+function normalizeLifeSettings(settings) {
+    settings = settings && typeof settings === 'object' ? settings : {};
+    const birthDateValue = isValidDateInput(settings.birthDate) ? settings.birthDate : defaultLifeSettings.birthDate;
+    const birthTimeValue = isValidTimeInput(settings.birthTime) ? settings.birthTime : defaultLifeSettings.birthTime;
+    const yearsValue = Number(settings.lifeExpectancyYears);
+
+    return {
+        birthDate: birthDateValue,
+        birthTime: birthTimeValue,
+        useBirthTime: Boolean(settings.useBirthTime),
+        lifeExpectancyYears: Number.isFinite(yearsValue) ? Math.min(Math.max(Math.round(yearsValue), 1), 150) : defaultLifeSettings.lifeExpectancyYears,
+        gridPrecision: isValidGridPrecision(settings.gridPrecision) ? settings.gridPrecision : defaultLifeSettings.gridPrecision
+    };
+}
+
+function isValidDateInput(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isValidTimeInput(value) {
+    return typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+}
+
+function isValidGridPrecision(value) {
+    return ['weeks', 'months', 'years'].includes(value);
+}
+
+function createBirthDate(settings) {
+    const [year, month, day] = settings.birthDate.split('-').map(Number);
+    const [hour, minute] = settings.useBirthTime ? settings.birthTime.split(':').map(Number) : [0, 0];
+    return new Date(year, month - 1, day, hour, minute);
+}
+
+function createDeathDate(startDate, years) {
+    const endDate = new Date(startDate);
+    endDate.setFullYear(startDate.getFullYear() + years);
+    return endDate;
+}
+
+function saveLifeSettings(settings) {
+    lifeSettings = normalizeLifeSettings(settings);
+    localStorage.setItem(LIFE_SETTINGS_KEY, JSON.stringify(lifeSettings));
+    birthDate = createBirthDate(lifeSettings);
+    lifeExpectancyYears = lifeSettings.lifeExpectancyYears;
+    deathDate = createDeathDate(birthDate, lifeExpectancyYears);
+    generateGrid();
+    updateTimers();
+}
 
 // Shortcuts (Top Center)
 const myShortcuts = [
@@ -68,6 +137,8 @@ function updateTimers() {
         document.getElementById('m-left').innerText = String(t.minutes).padStart(2, '0');
         document.getElementById('s-left').innerText = String(t.seconds).padStart(2, '0');
         document.getElementById('ms-left').innerText = String(Math.floor(t.ms / 10)).padStart(2, '0');
+    } else {
+        setTimerValues('left', { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, ms: 0 });
     }
 
     // Current Life
@@ -79,6 +150,20 @@ function updateTimers() {
         document.getElementById('h-past').innerText = String(p.hours).padStart(2, '0');
         document.getElementById('m-past').innerText = String(p.minutes).padStart(2, '0');
         document.getElementById('s-past').innerText = String(p.seconds).padStart(2, '0');
+    } else {
+        setTimerValues('past', { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, ms: 0 });
+    }
+}
+
+function setTimerValues(type, values) {
+    document.getElementById(`y-${type}`).innerText = String(values.years).padStart(2, '0');
+    document.getElementById(`mo-${type}`).innerText = String(values.months).padStart(2, '0');
+    document.getElementById(`d-${type}`).innerText = String(values.days).padStart(2, '0');
+    document.getElementById(`h-${type}`).innerText = String(values.hours).padStart(2, '0');
+    document.getElementById(`m-${type}`).innerText = String(values.minutes).padStart(2, '0');
+    document.getElementById(`s-${type}`).innerText = String(values.seconds).padStart(2, '0');
+    if (type === 'left') {
+        document.getElementById('ms-left').innerText = String(Math.floor(values.ms / 10)).padStart(2, '0');
     }
 }
 
@@ -89,17 +174,49 @@ function updateTimers() {
 
 function generateGrid() {
     const container = document.getElementById('grid-container');
-    const totalWeeks = lifeExpectancyYears * 52; 
-    const now = new Date();
-    const weeksLived = Math.floor((now - birthDate) / (1000 * 60 * 60 * 24 * 7));
+    const gridUnits = getGridUnits();
 
     container.innerHTML = ''; 
-    for (let i = 0; i < totalWeeks; i++) {
+    for (let i = 0; i < gridUnits.total; i++) {
         const tile = document.createElement('div');
         tile.classList.add('tile');
-        if (i < weeksLived) tile.classList.add('past');
+        if (i < gridUnits.lived) tile.classList.add('past');
         container.appendChild(tile);
     }
+}
+
+function getGridUnits() {
+    const now = new Date();
+    const precision = lifeSettings.gridPrecision;
+
+    if (precision === 'years') {
+        const yearsLived = now > birthDate ? getPreciseDiff(birthDate, now).years : 0;
+        return {
+            total: lifeExpectancyYears,
+            lived: clampGridProgress(yearsLived, lifeExpectancyYears)
+        };
+    }
+
+    if (precision === 'months') {
+        const totalMonths = lifeExpectancyYears * 12;
+        const livedDiff = now > birthDate ? getPreciseDiff(birthDate, now) : { years: 0, months: 0 };
+        const monthsLived = livedDiff.years * 12 + livedDiff.months;
+        return {
+            total: totalMonths,
+            lived: clampGridProgress(monthsLived, totalMonths)
+        };
+    }
+
+    const totalWeeks = lifeExpectancyYears * 52;
+    const weeksLived = Math.floor((now - birthDate) / (1000 * 60 * 60 * 24 * 7));
+    return {
+        total: totalWeeks,
+        lived: clampGridProgress(weeksLived, totalWeeks)
+    };
+}
+
+function clampGridProgress(value, total) {
+    return Math.min(Math.max(value, 0), total);
 }
 
 function renderShortcuts() {
@@ -189,10 +306,51 @@ updateTimers();
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings');
+const settingsTabs = document.querySelectorAll('.settings-tab');
+const settingsPanels = document.querySelectorAll('.settings-panel');
+const lifeSettingsForm = document.getElementById('life-settings-form');
+const birthDateInput = document.getElementById('birth-date');
+const birthTimeInput = document.getElementById('birth-time');
+const useBirthTimeInput = document.getElementById('use-birth-time');
+const lifeExpectancyInput = document.getElementById('life-expectancy');
+const gridPrecisionInputs = document.querySelectorAll('input[name="gridPrecision"]');
+const resetLifeSettingsBtn = document.getElementById('reset-life-settings');
+const settingsStatus = document.getElementById('settings-status');
+
+function syncSettingsForm() {
+    if (!lifeSettingsForm) return;
+    birthDateInput.value = lifeSettings.birthDate;
+    birthTimeInput.value = lifeSettings.birthTime;
+    useBirthTimeInput.checked = lifeSettings.useBirthTime;
+    birthTimeInput.disabled = !lifeSettings.useBirthTime;
+    lifeExpectancyInput.value = lifeSettings.lifeExpectancyYears;
+    gridPrecisionInputs.forEach(input => {
+        input.checked = input.value === lifeSettings.gridPrecision;
+    });
+}
+
+function showSettingsStatus(message) {
+    if (!settingsStatus) return;
+    settingsStatus.innerText = message;
+    window.clearTimeout(showSettingsStatus.timeoutId);
+    showSettingsStatus.timeoutId = window.setTimeout(() => {
+        settingsStatus.innerText = '';
+    }, 2200);
+}
+
+function setActiveSettingsTab(tabName) {
+    settingsTabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.settingsTab === tabName);
+    });
+    settingsPanels.forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.settingsPanel === tabName);
+    });
+}
 
 // Open Modal
 if(settingsBtn) {
     settingsBtn.addEventListener('click', () => {
+        syncSettingsForm();
         settingsModal.classList.add('show');
     });
 }
@@ -210,3 +368,40 @@ window.addEventListener('click', (e) => {
         settingsModal.classList.remove('show');
     }
 });
+
+settingsTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        setActiveSettingsTab(tab.dataset.settingsTab);
+    });
+});
+
+if (useBirthTimeInput) {
+    useBirthTimeInput.addEventListener('change', () => {
+        birthTimeInput.disabled = !useBirthTimeInput.checked;
+    });
+}
+
+if (lifeSettingsForm) {
+    lifeSettingsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveLifeSettings({
+            birthDate: birthDateInput.value,
+            birthTime: birthTimeInput.value || defaultLifeSettings.birthTime,
+            useBirthTime: useBirthTimeInput.checked,
+            lifeExpectancyYears: lifeExpectancyInput.value,
+            gridPrecision: document.querySelector('input[name="gridPrecision"]:checked')?.value || defaultLifeSettings.gridPrecision
+        });
+        syncSettingsForm();
+        showSettingsStatus('Saved. Your time canvas is updated.');
+    });
+}
+
+if (resetLifeSettingsBtn) {
+    resetLifeSettingsBtn.addEventListener('click', () => {
+        saveLifeSettings(defaultLifeSettings);
+        syncSettingsForm();
+        showSettingsStatus('Reset to the original setup.');
+    });
+}
+
+syncSettingsForm();

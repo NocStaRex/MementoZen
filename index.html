@@ -1,280 +1,3 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>New Tab</title>
-    <link rel="icon" href="icon.png" type="image/png">
-    
-    <script src="memory.js"></script>
-
-    <style>
-        /* --- GLOBAL SETTINGS --- */
-        body {
-            margin: 0; padding: 0;
-            background-color: #111; color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        /* --- BACKGROUND GRID --- */
-        #grid-container {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
-            grid-auto-rows: 20px;
-            gap: 2px;
-            z-index: 0; opacity: 0.4;
-        }
-        .tile { width: 100%; height: 100%; background-color: #2c2c2c; border-radius: 2px; }
-        .tile.past { background-color: #4a69bd; }
-        .tile.past:nth-child(3n) { background-color: #3c40c6; }
-        .tile.past:nth-child(4n) { background-color: #575fcf; }
-
-        /* --- MAIN TIMER (CENTER - BIG & ROUND) --- */
-        #content {
-            z-index: 10; text-align: center;
-            background: rgba(0, 0, 0, 0.85); /* Center me Dark rahega */
-            padding: 40px 60px;
-            
-            /* Center State: Bada aur Gol */
-            border-radius: 35px; 
-            
-            /* Center State: Shadow ON */
-            box-shadow: 0 0 60px rgba(0,0,0,0.9);
-            
-            border: 1px solid #333;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-
-        h1 { font-size: 3rem; margin: 0 0 20px 0; font-weight: 300; letter-spacing: 2px; color: #fff; }
-        .timer-row { display: flex; gap: 25px; justify-content: center; }
-        .time-unit { display: flex; flex-direction: column; align-items: center; }
-        .number { font-size: 3.5rem; font-weight: 700; font-family: 'Courier New', monospace; color: #eee; }
-        .label { font-size: 0.85rem; text-transform: uppercase; color: #888; margin-top: 5px; letter-spacing: 1px; }
-
-        /* --- SECONDARY TIMER (BOTTOM LEFT - BOXY) --- */
-        #bottom-left-timer {
-            position: fixed; bottom: 30px; left: 30px; z-index: 20;
-            background: rgba(0, 0, 0, 0.8); /* Ye thoda transparent hai */
-            padding: 20px;
-            
-            /* Boxy Shape */
-            border-radius: 12px; 
-            
-            border: 1px solid #333;
-            transform-origin: bottom left;
-            transform: scale(0.8);
-        }
-        #bottom-left-timer h2 {
-            font-size: 1.5rem; margin: 0 0 15px 0; color: #ccc; font-weight: 300;
-            text-align: left; border-bottom: 1px solid #444; padding-bottom: 5px; display: inline-block;
-        }
-        #bottom-left-timer .number { font-size: 2rem; }
-        #bottom-left-timer .timer-row { gap: 15px; }
-
-        /* --- SHORTCUTS BAR (TOP) --- */
-        #shortcuts {
-            position: absolute; top: 15%; z-index: 30;
-            display: flex; justify-content: center; flex-wrap: wrap; gap: 40px;
-        }
-        .shortcut-item {
-            display: flex; flex-direction: column; align-items: center;
-            text-decoration: none; color: #ccc; transition: transform 0.2s ease; cursor: pointer;
-        }
-        .shortcut-item:hover { transform: translateY(-5px); color: white; }
-        .icon-box {
-            width: 60px; height: 60px; background: rgba(255, 255, 255, 0.1);
-            border-radius: 18px; display: flex; justify-content: center; align-items: center;
-            margin-bottom: 10px; backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.2s;
-        }
-        .shortcut-item:hover .icon-box { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.3); }
-        .shortcut-label { font-size: 0.8rem; letter-spacing: 0.5px; }
-
-
-        /* =========================================
-           --- DAY 1 FEATURE: ZEN MODE ---
-           ========================================= */
-
-        /* Toggle Button */
-        #zen-toggle {
-            position: fixed; top: 30px; right: 30px;
-            width: 50px; height: 50px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; z-index: 1000;
-            transition: all 0.2s ease;
-        }
-        #zen-toggle:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.1); }
-        #zen-toggle svg { width: 28px; height: 28px; fill: #eee; }
-        #zen-toggle:hover svg { fill: white; }
-
-        /* Minimized Box State (THE SHAPE SHIFTER) */
-        .zen-active #content {
-            position: fixed !important;
-            bottom: 30px !important; right: 30px !important;
-            top: auto !important; left: auto !important;
-            padding: 20px !important; text-align: left !important;
-            transform: scale(0.8); transform-origin: bottom right;
-            margin: 0 !important; z-index: 50;
-            
-            /* --- FIX 1: BOXY SHAPE (Match Left Side) --- */
-            border-radius: 12px !important; 
-
-            /* --- FIX 2: NO SHADOW (Clean Look) --- */
-            box-shadow: none !important;
-
-            /* --- FIX 3: BACKGROUND MATCH (Thoda Transparent) --- */
-            /* 0.85 se 0.8 kar diya, left wale se match karega */
-            background: rgba(0, 0, 0, 0.8) !important;
-        }
-        
-        .zen-active #content h1 {
-            font-size: 1.5rem !important; text-align: left !important;
-            margin: 0 0 15px 0 !important; border-bottom: 1px solid #444 !important;
-            padding-bottom: 5px !important; display: inline-block !important;
-        }
-        .zen-active #content .number { font-size: 2rem !important; }
-        .zen-active #content .timer-row { gap: 15px !important; }
-        .zen-active #content .label { font-size: 0.7rem !important; }
-
-
-        /* =========================================
-           --- DAY 2 FEATURE: AI SIDEBAR ---
-           ========================================= */
-
-        #ai-sidebar {
-            position: fixed; top: 25%; right: 0; z-index: 200;
-            display: flex; align-items: flex-start;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform: translateX(220px); /* Hidden by default */
-        }
-
-        /* The "Cement" Fix (Invisible tail to prevent closing) */
-        #ai-sidebar::after {
-            content: ''; position: absolute;
-            top: 0; left: 100%; width: 100px; height: 100%;
-            background: transparent;
-        }
-
-        /* Hover to Open */
-        #ai-sidebar:hover { transform: translateX(0); }
-
-        /* The Handle */
-        #ai-handle {
-            width: 40px; height: 80px;
-            background: rgba(20, 20, 20, 0.9);
-            border-radius: 12px 0 0 12px;
-            border: 1px solid #333; border-right: none;
-            cursor: pointer;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            color: #8ab4f8; box-shadow: -4px 0 15px rgba(0,0,0,0.5);
-            margin-top: 60px; /* Offset from top */
-        }
-        
-        #ai-handle span { 
-            font-size: 14px; font-weight: 900;
-            writing-mode: horizontal-tb; text-orientation: mixed;
-            transform: none; letter-spacing: 1px;
-            margin-top: 5px; color: #8ab4f8;
-        }
-        #ai-handle svg { width: 24px; height: 24px; fill: currentColor; }
-
-        /* The Drawer */
-        .ai-content {
-            width: 220px;
-            background: rgba(20, 20, 20, 0.95);
-            backdrop-filter: blur(10px);
-            border-left: 1px solid #333; border-bottom: 1px solid #333; border-top: 1px solid #333;
-            padding: 20px;
-            border-radius: 20px 0 0 20px; /* Top/Bottom Left rounded */
-            box-shadow: -10px 10px 30px rgba(0,0,0,0.8);
-        }
-        .ai-content h3 {
-            margin: 0 0 20px 0; font-weight: 300; font-size: 1.2rem;
-            color: #fff; text-align: center;
-            border-bottom: 1px solid #444; padding-bottom: 10px;
-            letter-spacing: 1px;
-        }
-
-        /* AI Grid */
-        .ai-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
-            justify-items: center;
-        }
-        .ai-item {
-            width: 60px; height: 60px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            display: flex; justify-content: center; align-items: center;
-            transition: all 0.2s; border: 1px solid transparent;
-            text-decoration: none;
-        }
-        .ai-item:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: scale(1.05); border-color: #8ab4f8;
-        }
-        .ai-item img { width: 32px; height: 32px; border-radius: 4px; }
-        .ai-item.empty { color: #444; font-size: 1.5rem; cursor: default; }
-        .ai-item.empty:hover { background: rgba(255, 255, 255, 0.05); transform: none; border-color: transparent; }
-
-    </style>
-</head>
-<body>
-
-    <div id="zen-toggle"></div>
-
-    <div id="grid-container"></div>
-    <div id="shortcuts"></div>
-
-    <div id="ai-sidebar">
-        <div id="ai-handle">
-            <svg viewBox="0 0 24 24"><path d="M11.5,22c1.1,0 2-0.9 2-2h-4c0,1.1 0.9,2 2,2zM18,16.5v-5.5c0-3.07-1.63-5.64-4.5-6.32v-0.68c0-0.83-0.67-1.5-1.5-1.5s-1.5,0.67-1.5,1.5v0.68c-2.87,0.68-4.5,3.25-4.5,6.32v5.5l-2,2v1h16v-1l-2-2z"/></svg>
-            <span>AI</span>
-        </div>
-        <div class="ai-content">
-            <h3>AI Apps</h3>
-            <div id="ai-grid-container" class="ai-grid"></div>
-        </div>
-    </div>
-
-    <div id="content">
-        <h1>Life Left...</h1>
-        <div class="timer-row">
-            <div class="time-unit"><span class="number" id="y-left">00</span><span class="label">Years</span></div>
-            <div class="time-unit"><span class="number" id="mo-left">00</span><span class="label">Months</span></div>
-            <div class="time-unit"><span class="number" id="d-left">00</span><span class="label">Days</span></div>
-            <div class="time-unit"><span class="number" id="h-left">00</span><span class="label">Hours</span></div>
-            <div class="time-unit"><span class="number" id="m-left">00</span><span class="label">Min</span></div>
-            <div class="time-unit"><span class="number" id="s-left">00</span><span class="label">Sec</span></div>
-            <div class="time-unit"><span class="number" id="ms-left">00</span><span class="label">MS</span></div>
-        </div>
-    </div>
-
-    <div id="bottom-left-timer">
-        <h2>CurrentLife</h2>
-        <div class="timer-row">
-            <div class="time-unit"><span class="number" id="y-past">00</span><span class="label">Years</span></div>
-            <div class="time-unit"><span class="number" id="mo-past">00</span><span class="label">Months</span></div>
-            <div class="time-unit"><span class="number" id="d-past">00</span><span class="label">Days</span></div>
-            <div class="time-unit"><span class="number" id="h-past">00</span><span class="label">Hours</span></div>
-            <div class="time-unit"><span class="number" id="m-past">00</span><span class="label">Min</span></div>
-            <div class="time-unit"><span class="number" id="s-past">00</span><span class="label">Sec</span></div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html> -->
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -457,7 +180,7 @@
         /* Show State */
         #settings-modal.show { opacity: 1; pointer-events: all; }
 
-        /* /* --- UPDATED: BUTTON STYLE MATCHING MODAL --- */
+        /* --- UPDATED: BUTTON STYLE MATCHING MODAL --- */
         .modal-box {
             width: 500px; max-width: 90%;
             
@@ -487,7 +210,12 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.2); 
             
             padding-bottom: 15px;
-        }    */
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
         
         .close-btn {
             background: none; border: none; color: #888; font-size: 2rem;
@@ -495,8 +223,145 @@
         }
         .close-btn:hover { color: #fff; }
 
-        /* Dummy Content for Size Check */
         .modal-body { color: #ccc; font-size: 0.9rem; min-height: 100px; }
+        .settings-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            overflow: hidden;
+            border: 1px solid rgba(138, 180, 248, 0.8);
+            border-radius: 6px;
+            margin-bottom: 25px;
+        }
+        .settings-tab {
+            background: transparent;
+            border: none;
+            border-right: 1px solid rgba(138, 180, 248, 0.8);
+            color: #8ab4f8;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 12px 10px;
+            transition: all 0.2s ease;
+        }
+        .settings-tab:last-child { border-right: none; }
+        .settings-tab.active {
+            background: rgba(138, 180, 248, 0.22);
+            color: #fff;
+        }
+        .settings-panel { display: none; }
+        .settings-panel.active { display: block; }
+        .settings-form {
+            display: grid;
+            gap: 18px;
+        }
+        .field-row {
+            display: grid;
+            gap: 8px;
+        }
+        .field-row label,
+        .checkbox-row {
+            color: #f3f3f3;
+            font-size: 0.95rem;
+        }
+        .field-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .settings-form input[type="date"],
+        .settings-form input[type="time"],
+        .settings-form input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid #8ab4f8;
+            border-radius: 7px;
+            color: #111;
+            font-size: 1rem;
+            padding: 9px 10px;
+            outline: none;
+        }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-row input {
+            width: 20px;
+            height: 20px;
+            accent-color: #8ab4f8;
+        }
+        .precision-field {
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.16);
+            padding-top: 16px;
+            text-align: center;
+        }
+        .precision-label {
+            color: #f3f3f3;
+            font-size: 0.95rem;
+        }
+        .precision-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            overflow: hidden;
+            width: 100%;
+            border: 1px solid rgba(138, 180, 248, 0.9);
+            border-radius: 6px;
+        }
+        .precision-options label {
+            cursor: pointer;
+            border-right: 1px solid rgba(138, 180, 248, 0.9);
+        }
+        .precision-options label:last-child { border-right: none; }
+        .precision-options input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .precision-options span {
+            display: block;
+            color: #8ab4f8;
+            font-size: 0.95rem;
+            padding: 10px;
+            transition: all 0.2s ease;
+        }
+        .precision-options input:checked + span {
+            background: rgba(138, 180, 248, 0.95);
+            color: #07111f;
+        }
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .settings-action {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: all 0.2s ease;
+        }
+        .settings-action.primary {
+            background: rgba(138, 180, 248, 0.95);
+            color: #07111f;
+        }
+        .settings-action.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f3f3f3;
+        }
+        .settings-action:hover { transform: translateY(-1px); }
+        .settings-note {
+            color: #aaa;
+            line-height: 1.5;
+            margin: 0;
+        }
+        #settings-status {
+            min-height: 18px;
+            color: #8ab4f8;
+            font-size: 0.8rem;
+            text-align: right;
+        }
 
 
         /* =========================================
@@ -609,15 +474,6 @@
     </div>
 </div>
 
-    <!-- <div id="top-controls">
-        <div id="settings-btn" class="control-btn" title="Settings">
-            <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.49l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
-        </div>
-        
-        <div id="zen-toggle" class="control-btn" title="Zen Mode">
-            </div>
-    </div> -->
-
     <div id="settings-modal">
         <div class="modal-box">
             <div class="modal-header">
@@ -625,8 +481,66 @@
                 <button id="close-settings" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <p>⚙️ Configuration coming soon...</p>
-                <p>This is where we will create the toggles for visualization.</p>
+                <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+                    <button class="settings-tab active" data-settings-tab="time-spent" type="button">Time Spent</button>
+                    <button class="settings-tab" data-settings-tab="time-left" type="button">Time Left</button>
+                    <button class="settings-tab" data-settings-tab="extras" type="button">Extras</button>
+                </div>
+
+                <section class="settings-panel active" data-settings-panel="time-spent">
+                    <form id="life-settings-form" class="settings-form">
+                        <div class="field-group">
+                            <div class="field-row">
+                                <label for="birth-date">When were you born?</label>
+                                <input id="birth-date" name="birthDate" type="date" required>
+                            </div>
+                            <div class="field-row">
+                                <label class="checkbox-row" for="use-birth-time">
+                                    <input id="use-birth-time" name="useBirthTime" type="checkbox">
+                                    <span>Add Time</span>
+                                </label>
+                                <input id="birth-time" name="birthTime" type="time" step="60">
+                            </div>
+                        </div>
+
+                        <div class="field-row">
+                            <label for="life-expectancy">How many years would you like to live?</label>
+                            <input id="life-expectancy" name="lifeExpectancyYears" type="number" min="1" max="150" step="1" required>
+                        </div>
+
+                        <div class="field-row precision-field">
+                            <span class="precision-label">Chapter Precision</span>
+                            <div class="precision-options" role="radiogroup" aria-label="Chapter Precision">
+                                <label>
+                                    <input type="radio" name="gridPrecision" value="weeks">
+                                    <span>Weeks</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="gridPrecision" value="months">
+                                    <span>Months</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="gridPrecision" value="years">
+                                    <span>Years</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-actions">
+                            <button class="settings-action secondary" id="reset-life-settings" type="button">Reset</button>
+                            <button class="settings-action primary" type="submit">Save</button>
+                        </div>
+                        <div id="settings-status" aria-live="polite"></div>
+                    </form>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="time-left">
+                    <p class="settings-note">Next we can add controls here for showing/hiding Life Left, CurrentLife, milliseconds, and the grid style.</p>
+                </section>
+
+                <section class="settings-panel" data-settings-panel="extras">
+                    <p class="settings-note">This will become the personal canvas area for shortcuts, AI apps, goals, and future calendar features.</p>
+                </section>
             </div>
         </div>
     </div>

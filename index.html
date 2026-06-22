@@ -19,10 +19,9 @@
 
         /* --- BACKGROUND GRID --- */
         #grid-container {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            position: absolute;
+            top: 28px; right: 24px; bottom: 24px; left: 28px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
-            grid-auto-rows: 20px;
             gap: 2px;
             z-index: 0; opacity: 0.4;
         }
@@ -30,6 +29,24 @@
         .tile.past { background-color: #4a69bd; }
         .tile.past:nth-child(3n) { background-color: #3c40c6; }
         .tile.past:nth-child(4n) { background-color: #575fcf; }
+        .tile.partial {
+            background: linear-gradient(90deg, #4a69bd var(--progress), #2c2c2c var(--progress));
+        }
+        #grid-container[data-precision="weeks"] {
+            grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+            grid-auto-rows: 20px;
+            gap: 2px;
+        }
+        #grid-container[data-precision="months"] {
+            grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+            grid-auto-rows: 76px;
+            gap: 7px;
+        }
+        #grid-container[data-precision="years"] {
+            grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+            grid-auto-rows: 124px;
+            gap: 8px;
+        }
 
         /* --- MAIN TIMER (CENTER) --- */
         #content {
@@ -308,24 +325,18 @@
             border: 1px solid rgba(138, 180, 248, 0.9);
             border-radius: 6px;
         }
-        .precision-options label {
+        .precision-option {
+            background: transparent;
+            border: none;
             cursor: pointer;
             border-right: 1px solid rgba(138, 180, 248, 0.9);
-        }
-        .precision-options label:last-child { border-right: none; }
-        .precision-options input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }
-        .precision-options span {
-            display: block;
             color: #8ab4f8;
             font-size: 0.95rem;
             padding: 10px;
             transition: all 0.2s ease;
         }
-        .precision-options input:checked + span {
+        .precision-option:last-child { border-right: none; }
+        .precision-option.active {
             background: rgba(138, 180, 248, 0.95);
             color: #07111f;
         }
@@ -511,18 +522,9 @@
                         <div class="field-row precision-field">
                             <span class="precision-label">Chapter Precision</span>
                             <div class="precision-options" role="radiogroup" aria-label="Chapter Precision">
-                                <label>
-                                    <input type="radio" name="gridPrecision" value="weeks">
-                                    <span>Weeks</span>
-                                </label>
-                                <label>
-                                    <input type="radio" name="gridPrecision" value="months">
-                                    <span>Months</span>
-                                </label>
-                                <label>
-                                    <input type="radio" name="gridPrecision" value="years">
-                                    <span>Years</span>
-                                </label>
+                                <button class="precision-option" data-grid-precision="weeks" type="button" role="radio" aria-checked="false">Weeks</button>
+                                <button class="precision-option" data-grid-precision="months" type="button" role="radio" aria-checked="false">Months</button>
+                                <button class="precision-option" data-grid-precision="years" type="button" role="radio" aria-checked="false">Years</button>
                             </div>
                         </div>
 

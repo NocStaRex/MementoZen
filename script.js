@@ -176,11 +176,16 @@ function generateGrid() {
     const container = document.getElementById('grid-container');
     const gridUnits = getGridUnits();
 
+    container.dataset.precision = lifeSettings.gridPrecision;
     container.innerHTML = ''; 
     for (let i = 0; i < gridUnits.total; i++) {
         const tile = document.createElement('div');
         tile.classList.add('tile');
         if (i < gridUnits.lived) tile.classList.add('past');
+        if (i === gridUnits.lived && gridUnits.partial > 0) {
+            tile.classList.add('partial');
+            tile.style.setProperty('--progress', `${gridUnits.partial * 100}%`);
+        }
         container.appendChild(tile);
     }
 }
@@ -191,9 +196,12 @@ function getGridUnits() {
 
     if (precision === 'years') {
         const yearsLived = now > birthDate ? getPreciseDiff(birthDate, now).years : 0;
+        const currentYearStart = addYears(birthDate, yearsLived);
+        const nextYearStart = addYears(birthDate, yearsLived + 1);
         return {
             total: lifeExpectancyYears,
-            lived: clampGridProgress(yearsLived, lifeExpectancyYears)
+            lived: clampGridProgress(yearsLived, lifeExpectancyYears),
+            partial: getUnitProgress(now, currentYearStart, nextYearStart, yearsLived, lifeExpectancyYears)
         };
     }
 
@@ -201,22 +209,52 @@ function getGridUnits() {
         const totalMonths = lifeExpectancyYears * 12;
         const livedDiff = now > birthDate ? getPreciseDiff(birthDate, now) : { years: 0, months: 0 };
         const monthsLived = livedDiff.years * 12 + livedDiff.months;
+        const currentMonthStart = addMonths(birthDate, monthsLived);
+        const nextMonthStart = addMonths(birthDate, monthsLived + 1);
         return {
             total: totalMonths,
-            lived: clampGridProgress(monthsLived, totalMonths)
+            lived: clampGridProgress(monthsLived, totalMonths),
+            partial: getUnitProgress(now, currentMonthStart, nextMonthStart, monthsLived, totalMonths)
         };
     }
 
     const totalWeeks = lifeExpectancyYears * 52;
     const weeksLived = Math.floor((now - birthDate) / (1000 * 60 * 60 * 24 * 7));
+    const currentWeekStart = addDays(birthDate, weeksLived * 7);
+    const nextWeekStart = addDays(birthDate, (weeksLived + 1) * 7);
     return {
         total: totalWeeks,
-        lived: clampGridProgress(weeksLived, totalWeeks)
+        lived: clampGridProgress(weeksLived, totalWeeks),
+        partial: getUnitProgress(now, currentWeekStart, nextWeekStart, weeksLived, totalWeeks)
     };
 }
 
 function clampGridProgress(value, total) {
     return Math.min(Math.max(value, 0), total);
+}
+
+function getUnitProgress(now, startDate, endDate, completedUnits, totalUnits) {
+    if (now <= birthDate || completedUnits >= totalUnits) return 0;
+    const progress = (now - startDate) / (endDate - startDate);
+    return Math.min(Math.max(progress, 0), 1);
+}
+
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+}
+
+function addMonths(date, months) {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+}
+
+function addYears(date, years) {
+    const result = new Date(date);
+    result.setFullYear(result.getFullYear() + years);
+    return result;
 }
 
 function renderShortcuts() {
@@ -313,7 +351,7 @@ const birthDateInput = document.getElementById('birth-date');
 const birthTimeInput = document.getElementById('birth-time');
 const useBirthTimeInput = document.getElementById('use-birth-time');
 const lifeExpectancyInput = document.getElementById('life-expectancy');
-const gridPrecisionInputs = document.querySelectorAll('input[name="gridPrecision"]');
+const gridPrecisionButtons = document.querySelectorAll('.precision-option');
 const resetLifeSettingsBtn = document.getElementById('reset-life-settings');
 const settingsStatus = document.getElementById('settings-status');
 
@@ -324,9 +362,21 @@ function syncSettingsForm() {
     useBirthTimeInput.checked = lifeSettings.useBirthTime;
     birthTimeInput.disabled = !lifeSettings.useBirthTime;
     lifeExpectancyInput.value = lifeSettings.lifeExpectancyYears;
-    gridPrecisionInputs.forEach(input => {
-        input.checked = input.value === lifeSettings.gridPrecision;
+    gridPrecisionButtons.forEach(button => {
+        const isActive = button.dataset.gridPrecision === lifeSettings.gridPrecision;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-checked', String(isActive));
     });
+}
+
+function getSettingsFormValues(precisionOverride) {
+    return {
+        birthDate: birthDateInput.value,
+        birthTime: birthTimeInput.value || defaultLifeSettings.birthTime,
+        useBirthTime: useBirthTimeInput.checked,
+        lifeExpectancyYears: lifeExpectancyInput.value,
+        gridPrecision: precisionOverride || document.querySelector('.precision-option.active')?.dataset.gridPrecision || defaultLifeSettings.gridPrecision
+    };
 }
 
 function showSettingsStatus(message) {
@@ -381,16 +431,18 @@ if (useBirthTimeInput) {
     });
 }
 
+gridPrecisionButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        saveLifeSettings(getSettingsFormValues(button.dataset.gridPrecision));
+        syncSettingsForm();
+        showSettingsStatus(`Grid changed to ${button.dataset.gridPrecision}.`);
+    });
+});
+
 if (lifeSettingsForm) {
     lifeSettingsForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        saveLifeSettings({
-            birthDate: birthDateInput.value,
-            birthTime: birthTimeInput.value || defaultLifeSettings.birthTime,
-            useBirthTime: useBirthTimeInput.checked,
-            lifeExpectancyYears: lifeExpectancyInput.value,
-            gridPrecision: document.querySelector('input[name="gridPrecision"]:checked')?.value || defaultLifeSettings.gridPrecision
-        });
+        saveLifeSettings(getSettingsFormValues());
         syncSettingsForm();
         showSettingsStatus('Saved. Your time canvas is updated.');
     });
